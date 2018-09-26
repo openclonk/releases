@@ -1,0 +1,88 @@
+<!doctype html>
+<html>
+<head>
+	<meta charset="utf-8">
+	<title>OpenClonk Snapshots</title>
+
+<style>
+	@import url('//www.openclonk.org/homepage/common.css');
+
+	.dl {
+		overflow: hidden;
+		margin-bottom: 2px;
+	}
+
+	#Intro {
+		margin: 0;
+		margin-bottom: 30px;
+		width: 820px;
+	}
+
+	#OpenClonkSnapshots {
+		width: 410px;
+		margin: 0 20px 0 0;
+	}
+	
+	#MapeSnapshots {
+		width: 410px;
+		margin: 0 0 0 20px;
+	}
+	
+	.snapshots td {
+		border-top: 1px solid #ddd;
+		padding: 4px 2px;
+	}
+	
+	.snapshots {
+		width: 340px;
+	}
+
+</style>
+
+</head>
+<body>
+	{{.Header}}
+	<div>
+
+	<div class="portal_box paperbox" id="Intro">
+		<div class="pagetitle">Development Snapshots</div>
+		<img src="/homepage/128nightly.png" width="96" height="96" alt="nightly" style="float: left; margin-right: 30px;"/>
+		<p>
+			A development snapshot reflects the current state of the game as it is in the repository. A new snapshot is provided for each change made to the repository.<br/>
+			If this doesn't run out of the box, please <a href="https://bugs.openclonk.org/">report it</a>!
+		</p>
+	</div>
+
+	<div class="portal_box" id="OpenClonkSnapshots">
+		<h2>OpenClonk</h2>
+		<img src="/homepage/icon.png" width="48" height="48" alt="openclonk" style="float: left; margin-right: 20px;"/>
+
+		<table class="snapshots">
+			<tr><th>Branch</th><th>Download</th></tr>
+			{{range .Branches}}
+				<tr>
+					<td>
+						<strong>{{.Name}}</strong><br>
+						<a href="https://travis-ci.org/openclonk/openclonk"><img src="https://travis-ci.org/openclonk/openclonk.svg?branch={{.Name}}" alt="Travis build status"></a><br>
+						{{.Date}}<br>
+						<a href="https://github.com/openclonk/openclonk/commit/{{.Revision}}">{{.Revision}}</a>
+					</td>
+					<td>
+						{{ $base := "https://releases.openclonk.org" }}
+						{{with .LinuxDL}}
+							<div class="dl">
+								<img class="dl_icon" src="/homepage/logo_linux64.png" alt="">
+								<a href="{{$base}}{{.}}">Linux 64 bit</a>
+							</div>
+						{{end}}
+					</td>
+				</tr>
+			{{end}}
+		</table>
+
+	</div>
+
+	</div>
+	{{.Botter}}
+</body>
+</html>

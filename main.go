@@ -6,11 +6,21 @@ import (
 	"os"
 )
 
+// Path where the snapshot files go.
 var cfgBasePath string = checkEnvUnset("OC_REL_BASE_PATH")
+
+// Path where the HTML pages go.
+var cfgHtmlPath string = checkEnvUnset("OC_REL_HTML_PATH")
+
+// Authentication data in the format <username>:<password> (basic auth)
 var cfgUploadPassword string = checkEnvUnset("OC_REL_UPLOAD_PASSWORD")
+
+// Port to listen on.
 var cfgPort string = checkEnvUnset("PORT")
 
 func main() {
+	generateSnapshotPage()
+
 	http.HandleFunc("/snapshots/", handleSnapshots)
 
 	fmt.Println("listening on", cfgPort)

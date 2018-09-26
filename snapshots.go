@@ -10,7 +10,9 @@ import (
 	"regexp"
 )
 
-var snapshotPathRegexp = regexp.MustCompile(`^/snapshots/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z-[^/]+-[a-f0-9]+/[^/]+$`)
+var snapshotDirRegexpString = `(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z)-([^/]+)-([a-f0-9]+)`
+var snapshotDirRegexp = regexp.MustCompile(`^` + snapshotDirRegexpString + `$`)
+var snapshotPathRegexp = regexp.MustCompile(`^/snapshots/` + snapshotDirRegexpString + `/[^/]+$`)
 
 func handleSnapshots(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
