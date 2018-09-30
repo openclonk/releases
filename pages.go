@@ -6,7 +6,6 @@ import (
 	"io/ioutil"
 	"net/http"
 	"os"
-	"path/filepath"
 	"regexp"
 	"sync"
 )
@@ -48,7 +47,7 @@ func generateSnapshotPage() {
 		Header: header,
 		Botter: botter,
 	}
-	data.Branches, err = getSnapshotBranches()
+	data.Branches, err = getSnapshotBranchList()
 	if err != nil {
 		fmt.Println("could not generate snapshot page: reading snapshots failed: ", err)
 		return
@@ -74,57 +73,66 @@ type SnapshotBranchInfo struct {
 	LinuxDL  string
 }
 
-func getSnapshotBranches() ([]SnapshotBranchInfo, error) {
-	branches := make(map[string]*SnapshotBranchInfo)
-	var currentBranch *SnapshotBranchInfo = nil
-	firstVisit := true
-	err := filepath.Walk(cfgBasePath+"/snapshots", func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			return err
+var appImageRegexp *regexp.Regexp = regexp.MustCompile(`\.AppImage$`)
+
+func getSnapshotFiles() (map[string][]SnapshotBranchInfo, error) {
+	branches := make(map[string][]SnapshotBranchInfo)
+	path := cfgBasePath + "/snapshots"
+	dirs, err := ioutil.ReadDir(path)
+	if err != nil {
+		return nil, err
+	}
+	// Iterate over directories in reverse to have the newest snapshot first.
+	for i := range dirs {
+		dir := dirs[len(dirs)-1-i]
+		if !dir.IsDir() {
+			continue
 		}
-		if info.IsDir() {
-			if m := snapshotDirRegexp.FindStringSubmatch(info.Name()); m != nil {
-				branchName := m[2]
-				currentBranch = &SnapshotBranchInfo{
-					Name:     branchName,
-					Date:     m[1],
-					Revision: m[3],
-				}
-				branches[branchName] = currentBranch
-			} else {
-				if firstVisit {
-					return nil
-				} else {
-					return filepath.SkipDir
+		if m := snapshotDirRegexp.FindStringSubmatch(dir.Name()); m != nil {
+			branchName := m[2]
+			branchInfo := SnapshotBranchInfo{
+				Name:     branchName,
+				Date:     m[1],
+				Revision: m[3],
+			}
+			files, err := ioutil.ReadDir(path + "/" + dir.Name())
+			if err != nil {
+				return nil, fmt.Errorf("couldn't read directory %s: %v", dir.Name(), err)
+			}
+			for _, file := range files {
+				filePath := "/snapshots/" + dir.Name() + "/" + file.Name()
+				if appImageRegexp.MatchString(file.Name()) {
+					branchInfo.LinuxDL = filePath
 				}
 			}
-		} else if currentBranch != nil {
-			if r := regexp.MustCompile(`\.AppImage$`); r.MatchString(info.Name()) {
-				currentBranch.LinuxDL = path[len(cfgBasePath):]
-			}
+			branches[branchName] = append(branches[branchName], branchInfo)
 		}
-		return nil
-	})
+	}
+	return branches, nil
+}
+
+func getSnapshotBranchList() ([]SnapshotBranchInfo, error) {
+	branches, err := getSnapshotFiles()
 	if err != nil {
 		return nil, err
 	}
 	// Now sort the map into an array.
 	branchArray := []SnapshotBranchInfo{}
 	// master always comes first.
-	if branches["master"] != nil {
-		branchArray = append(branchArray, *branches["master"])
+	if len(branches["master"]) > 0 {
+		branchArray = append(branchArray, branches["master"][0])
 		delete(branches, "master")
 	}
 	// Sort the remaining branches by latest build.
 	for len(branches) > 0 {
-		minBranch := ""
+		maxBranch := ""
 		for b, c := range branches {
-			if branches[minBranch] == nil || c.Date < branches[minBranch].Date {
-				minBranch = b
+			if branches[maxBranch] == nil || c[0].Date > branches[maxBranch][0].Date {
+				maxBranch = b
 			}
 		}
-		branchArray = append(branchArray, *branches[minBranch])
-		delete(branches, minBranch)
+		branchArray = append(branchArray, branches[maxBranch][0])
+		delete(branches, maxBranch)
 	}
 	return branchArray, nil
 }
