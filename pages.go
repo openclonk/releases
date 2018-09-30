@@ -119,7 +119,7 @@ func getSnapshotBranches() ([]SnapshotBranchInfo, error) {
 	for len(branches) > 0 {
 		minBranch := ""
 		for b, c := range branches {
-			if c.Date < branches[minBranch].Date {
+			if branches[minBranch] == nil || c.Date < branches[minBranch].Date {
 				minBranch = b
 			}
 		}
