@@ -57,7 +57,7 @@ func handleSnapshots(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		// Update download page.
-		generateSnapshotPage()
+		updateStaticFiles()
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
 	}

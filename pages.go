@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
 	"html/template"
 	"io/ioutil"
 	"net/http"
 	"os"
+	"os/exec"
 	"regexp"
 	"sync"
 )
@@ -66,7 +68,38 @@ func generateSnapshotPage() {
 	}
 }
 
+var createLatestLinksMutex *sync.Mutex = &sync.Mutex{}
+
+// createLatestLink creates symlinks for the latest build of each branch.
+func createLatestLinks() {
+	createLatestLinksMutex.Lock()
+	defer createLatestLinksMutex.Unlock()
+	branches, err := getSnapshotFiles()
+	if err != nil {
+		fmt.Println("could not link latest build: reading snapshots failed: ", err)
+	}
+	// For each branch, find the latest build with all files.
+	for branch, branchInfos := range branches {
+		for _, branchInfo := range branchInfos {
+			if branchInfo.LinuxDL != "" {
+				// Creating relative symlinks is mildly annoying with the Go API, so just call ln instead...
+				cmd := exec.Command("ln", "-sf", branchInfo.Dir, "latest-"+branch)
+				cmd.Dir = cfgBasePath + "/snapshots"
+				var out bytes.Buffer
+				cmd.Stdout = &out
+				cmd.Stderr = &out
+				err = cmd.Run()
+				if err != nil {
+					fmt.Println("could not link latest build of ", branch, ": ", out.String())
+					// Still continue with the others.
+				}
+			}
+		}
+	}
+}
+
 type SnapshotBranchInfo struct {
+	Dir      string
 	Name     string
 	Date     string
 	Revision string
@@ -91,6 +124,7 @@ func getSnapshotFiles() (map[string][]SnapshotBranchInfo, error) {
 		if m := snapshotDirRegexp.FindStringSubmatch(dir.Name()); m != nil {
 			branchName := m[2]
 			branchInfo := SnapshotBranchInfo{
+				Dir:      dir.Name(),
 				Name:     branchName,
 				Date:     m[1],
 				Revision: m[3],

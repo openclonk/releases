@@ -19,7 +19,7 @@ var cfgUploadPassword string = checkEnvUnset("OC_REL_UPLOAD_PASSWORD")
 var cfgPort string = checkEnvUnset("PORT")
 
 func main() {
-	generateSnapshotPage()
+	updateStaticFiles()
 
 	http.HandleFunc("/snapshots/", handleSnapshots)
 
@@ -38,4 +38,9 @@ func checkEnvUnset(env string) string {
 		os.Exit(1)
 	}
 	return s
+}
+
+func updateStaticFiles() {
+	generateSnapshotPage()
+	createLatestLinks()
 }
