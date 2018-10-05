@@ -83,7 +83,7 @@ func createLatestLinks() {
 		for _, branchInfo := range branchInfos {
 			if branchInfo.LinuxDL != "" {
 				// Creating relative symlinks is mildly annoying with the Go API, so just call ln instead...
-				cmd := exec.Command("ln", "-sf", branchInfo.Dir, "latest-"+branch)
+				cmd := exec.Command("ln", "-Tsf", branchInfo.Dir, "latest-"+branch)
 				cmd.Dir = cfgBasePath + "/snapshots"
 				var out bytes.Buffer
 				cmd.Stdout = &out
@@ -93,6 +93,7 @@ func createLatestLinks() {
 					fmt.Println("could not link latest build of ", branch, ": ", out.String())
 					// Still continue with the others.
 				}
+				break
 			}
 		}
 	}
