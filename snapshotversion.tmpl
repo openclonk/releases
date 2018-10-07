@@ -1,0 +1,6 @@
+{{range .Branches}}
+[Snapshot]
+Branch="{{.Name}}"
+Revision="{{.Revision}}"
+Date={{.Date | unixtime}}
+{{end}}

@@ -41,6 +41,11 @@ func checkEnvUnset(env string) string {
 }
 
 func updateStaticFiles() {
+	if err := os.MkdirAll(cfgHtmlPath+"/snapshots", 0755); err != nil {
+		fmt.Println("error: could not prepare HTML directory: ", err)
+		return
+	}
 	generateSnapshotPage()
 	createLatestLinks()
+	generateSnapshotVersionInfo()
 }

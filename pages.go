@@ -10,6 +10,7 @@ import (
 	"os/exec"
 	"regexp"
 	"sync"
+	"time"
 )
 
 var snapshotPageMutex *sync.Mutex = &sync.Mutex{}
@@ -19,7 +20,7 @@ func generateSnapshotPage() {
 	snapshotPageMutex.Lock()
 	defer snapshotPageMutex.Unlock()
 
-	// Always read the tempalte to make changes easy.
+	// Always read the template to make changes easy.
 	tmpl, err := template.ParseFiles("snapshots.tmpl")
 	if err != nil {
 		fmt.Println("could not generate snapshot page: reading template failed: ", err)
@@ -33,7 +34,7 @@ func generateSnapshotPage() {
 	}
 
 	// Don't overwrite the original file until everything is done.
-	tmpFilename := cfgHtmlPath + "/.snapshots.html"
+	tmpFilename := cfgHtmlPath + "/snapshots/.index.html"
 	file, err := os.Create(tmpFilename)
 	if err != nil {
 		fmt.Println("could not generate snapshot page: file creation failed: ", err)
@@ -61,9 +62,64 @@ func generateSnapshotPage() {
 		return
 	}
 
-	err = os.Rename(tmpFilename, cfgHtmlPath+"/snapshots.html")
+	err = os.Rename(tmpFilename, cfgHtmlPath+"/snapshots/index.html")
 	if err != nil {
 		fmt.Println("could not generate snapshot page: moving file failed: ", err)
+		return
+	}
+}
+
+var snapshotVersionInfoMutex *sync.Mutex = &sync.Mutex{}
+
+// generateSnapshotPage generates the HTML page for the snapshots.
+func generateSnapshotVersionInfo() {
+	snapshotVersionInfoMutex.Lock()
+	defer snapshotVersionInfoMutex.Unlock()
+
+	funcMap := template.FuncMap{
+		"unixtime": func(str string) (int64, error) {
+			t, err := time.Parse(time.RFC3339, str)
+			if err != nil {
+				return 0, err
+			}
+			return t.Unix(), nil
+		},
+	}
+
+	// Always read the template to make changes easy.
+	tmpl, err := template.New("snapshotversion.tmpl").Funcs(funcMap).ParseFiles("snapshotversion.tmpl")
+	if err != nil {
+		fmt.Println("could not generate version info: reading template failed: ", err)
+		return
+	}
+
+	// Don't overwrite the original file until everything is done.
+	tmpFilename := cfgHtmlPath + "/snapshots/.version.txt"
+	file, err := os.Create(tmpFilename)
+	if err != nil {
+		fmt.Println("could not generate version info: file creation failed: ", err)
+		return
+	}
+	defer file.Close()
+
+	data := struct {
+		Branches []SnapshotBranchInfo
+	}{}
+	data.Branches, err = getCompleteSnapshots()
+	if err != nil {
+		fmt.Println("could not generate version info: reading snapshots failed: ", err)
+		return
+	}
+
+	err = tmpl.Execute(file, data)
+	if err != nil {
+		fmt.Println("could not generate version info: template execution failed: ", err)
+		return
+	}
+
+	err = os.Rename(tmpFilename, cfgHtmlPath+"/snapshots/version.txt")
+	if err != nil {
+		fmt.Println("could not generate version info: moving file failed: ", err)
 		return
 	}
 }
@@ -74,27 +130,23 @@ var createLatestLinksMutex *sync.Mutex = &sync.Mutex{}
 func createLatestLinks() {
 	createLatestLinksMutex.Lock()
 	defer createLatestLinksMutex.Unlock()
-	branches, err := getSnapshotFiles()
+	snapshots, err := getCompleteSnapshots()
 	if err != nil {
 		fmt.Println("could not link latest build: reading snapshots failed: ", err)
 	}
 	// For each branch, find the latest build with all files.
-	for branch, branchInfos := range branches {
-		for _, branchInfo := range branchInfos {
-			if branchInfo.IsComplete() {
-				// Creating relative symlinks is mildly annoying with the Go API, so just call ln instead...
-				cmd := exec.Command("ln", "-Tsf", branchInfo.Dir, "latest-"+branch)
-				cmd.Dir = cfgBasePath + "/snapshots"
-				var out bytes.Buffer
-				cmd.Stdout = &out
-				cmd.Stderr = &out
-				err = cmd.Run()
-				if err != nil {
-					fmt.Println("could not link latest build of ", branch, ": ", out.String())
-					// Still continue with the others.
-				}
-				break
-			}
+	for _, branchInfo := range snapshots {
+		branch := branchInfo.Name
+		// Creating relative symlinks is mildly annoying with the Go API, so just call ln instead...
+		cmd := exec.Command("ln", "-Tsf", branchInfo.Dir, "latest-"+branch)
+		cmd.Dir = cfgBasePath + "/snapshots"
+		var out bytes.Buffer
+		cmd.Stdout = &out
+		cmd.Stderr = &out
+		err = cmd.Run()
+		if err != nil {
+			fmt.Println("could not link latest build of ", branch, ": ", out.String())
+			// Still continue with the others.
 		}
 	}
 }
@@ -156,6 +208,26 @@ func getSnapshotFiles() (map[string][]SnapshotBranchInfo, error) {
 		}
 	}
 	return branches, nil
+}
+
+// getCompleteSnapshots returns a list of the latest complete (i.e.,
+// all platforms done) snapshot infos for each branch.
+func getCompleteSnapshots() ([]SnapshotBranchInfo, error) {
+	branches, err := getSnapshotFiles()
+	if err != nil {
+		return nil, err
+	}
+	// For each branch, find the latest build with all files.
+	var snapshots []SnapshotBranchInfo
+	for _, branchInfos := range branches {
+		for _, branchInfo := range branchInfos {
+			if branchInfo.IsComplete() {
+				snapshots = append(snapshots, branchInfo)
+				break
+			}
+		}
+	}
+	return snapshots, nil
 }
 
 func getSnapshotBranchList() ([]SnapshotBranchInfo, error) {
