@@ -1,6 +1,7 @@
 package main
 
 import (
+	"crypto/subtle"
 	"encoding/base64"
 	"fmt"
 	"io"
@@ -23,7 +24,7 @@ func handleSnapshots(w http.ResponseWriter, r *http.Request) {
 	case "POST":
 		// Handle upload.
 		// Check authorization: only a single password is allowed.
-		if r.Header.Get("Authorization") != "Basic "+base64.StdEncoding.EncodeToString([]byte(cfgUploadPassword)) {
+		if subtle.ConstantTimeCompare([]byte(r.Header.Get("Authorization")), []byte("Basic "+base64.StdEncoding.EncodeToString([]byte(cfgUploadPassword)))) != 1 {
 			w.Header().Set("WWW-Authenticate", `Basic realm="OC Releases", charset="UTF-8"`)
 			w.WriteHeader(http.StatusUnauthorized)
 			return
