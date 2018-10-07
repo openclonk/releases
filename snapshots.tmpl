@@ -69,6 +69,12 @@
 					</td>
 					<td>
 						{{ $base := "https://releases.openclonk.org" }}
+						{{with .WindowsDL}}
+							<div class="dl">
+								<img class="dl_icon" src="/homepage/logo_win64.png" alt="">
+								<a href="{{$base}}{{.}}">Windows 64 bit</a>
+							</div>
+						{{end}}
 						{{with .LinuxDL}}
 							<div class="dl">
 								<img class="dl_icon" src="/homepage/logo_linux64.png" alt="">

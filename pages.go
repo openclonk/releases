@@ -81,7 +81,7 @@ func createLatestLinks() {
 	// For each branch, find the latest build with all files.
 	for branch, branchInfos := range branches {
 		for _, branchInfo := range branchInfos {
-			if branchInfo.LinuxDL != "" {
+			if branchInfo.IsComplete() {
 				// Creating relative symlinks is mildly annoying with the Go API, so just call ln instead...
 				cmd := exec.Command("ln", "-Tsf", branchInfo.Dir, "latest-"+branch)
 				cmd.Dir = cfgBasePath + "/snapshots"
@@ -100,14 +100,23 @@ func createLatestLinks() {
 }
 
 type SnapshotBranchInfo struct {
-	Dir      string
-	Name     string
-	Date     string
-	Revision string
-	LinuxDL  string
+	Dir       string
+	Name      string
+	Date      string
+	Revision  string
+	LinuxDL   string
+	WindowsDL string
 }
 
-var appImageRegexp *regexp.Regexp = regexp.MustCompile(`\.AppImage$`)
+// IsComplete checks whether there are downloads for all platforms.
+func (bi *SnapshotBranchInfo) IsComplete() bool {
+	return bi.LinuxDL != "" && bi.WindowsDL != ""
+}
+
+var (
+	appImageRegexp *regexp.Regexp = regexp.MustCompile(`\.AppImage$`)
+	winZipRegexp   *regexp.Regexp = regexp.MustCompile(`win.*\.zip$`)
+)
 
 func getSnapshotFiles() (map[string][]SnapshotBranchInfo, error) {
 	branches := make(map[string][]SnapshotBranchInfo)
@@ -136,8 +145,11 @@ func getSnapshotFiles() (map[string][]SnapshotBranchInfo, error) {
 			}
 			for _, file := range files {
 				filePath := "/snapshots/" + dir.Name() + "/" + file.Name()
-				if appImageRegexp.MatchString(file.Name()) {
+				switch {
+				case appImageRegexp.MatchString(file.Name()):
 					branchInfo.LinuxDL = filePath
+				case winZipRegexp.MatchString(file.Name()):
+					branchInfo.WindowsDL = filePath
 				}
 			}
 			branches[branchName] = append(branches[branchName], branchInfo)
